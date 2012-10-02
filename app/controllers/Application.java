@@ -1,21 +1,58 @@
 package controllers;
 
 
-
 import models.Session;
 import org.codehaus.jackson.JsonNode;
-import play.*;
 import play.libs.Json;
-import play.mvc.*;
+import play.mvc.Controller;
+import play.mvc.Result;
+import views.html.front;
 
-import views.html.*;
-
+import com.csvreader.CsvReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Application extends Controller {
+
+    public enum HeaderFields {
+        Date, Time, Topic, Description, Presenter, Room
+    }
+    
+    public static String[] headers;
   
-  public static Result index() {
+  public static Result index() throws IOException {
+
+      String contentURL = "https://docs.google.com/spreadsheet/pub?key=0AjHQr6EmDdMLdE9MX05uOWx0OHg0aDdQYm45WUctM1E&single=true&gid=0&output=csv";
+      HttpURLConnection conn;
+      URL url = new URL(contentURL);
+
+      conn = (HttpURLConnection) url.openConnection();
+      conn.setRequestMethod("GET");
+      conn.setRequestProperty("Accept", "text/csv");
+
+      if (conn.getResponseCode() != 200) {
+          throw new MalformedURLException("Non-200 response: " + conn.getResponseMessage());
+      }
+
+
+
+      CsvReader csvReader = new CsvReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
+      csvReader.readHeaders();
+      headers = csvReader.getHeaders();
+
+      int rowNumber = 1;
+      List sessions = new ArrayList<Session>();
+      while(csvReader.readRecord()) {
+          String[] currentLine = csvReader.getValues();
+          Session session = parseSessionFromCSVString(currentLine);
+          sessions.add(session);
+      }
 
 
 
@@ -166,13 +203,14 @@ public class Application extends Controller {
               "\t}\n" +
               "]");
 
+
       List sessionList = new ArrayList<Session>();
 
       for(JsonNode sessionNode : scheduleJson) {
           sessionList.add(parseSessionFromJSON(sessionNode));
       }
 
-    return ok(front.render("Your new application is ready.", sessionList));
+    return ok(front.render("Your new application is ready.", sessions));
   }
 
     private static Session parseSessionFromJSON(JsonNode json) {
@@ -190,5 +228,19 @@ public class Application extends Controller {
         //List<String> sidebarText = commnityJSON.findValuesAsText("sidebarText");
         return session;
     }
+    
+    private static Session parseSessionFromCSVString(String[] csvRow) {
+        Session session = new Session();
+        session.date = csvRow[HeaderFields.Date.ordinal()];
+        session.description = csvRow[HeaderFields.Description.ordinal()];
+        session.presenter = csvRow[HeaderFields.Presenter.ordinal()];
+        session.room = csvRow[HeaderFields.Room.ordinal()];
+        session.time = csvRow[HeaderFields.Time.ordinal()];
+        session.topic = csvRow[HeaderFields.Topic.ordinal()];
+
+        //List<String> sidebarText = commnityJSON.findValuesAsText("sidebarText");
+        return session;
+    }
+
   
 }
