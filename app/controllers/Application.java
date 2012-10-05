@@ -56,7 +56,7 @@ public class Application extends Controller {
           sessions.add(session);
       }
 
-    return ok(front.render("Your new application is ready.", sessions));
+    return ok(front.render("LITA Forum Schedule 2012", sessions));
   }
 
     private static Session parseSessionFromJSON(JsonNode json) {
